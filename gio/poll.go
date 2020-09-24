@@ -145,6 +145,9 @@ func(p *Poll)WaitFn(s *servant,P *poller, callback func(fd int,Act Action)error)
 			P.poll.AddR(c.fd,true)
 			c.poller = P
 			atomic.AddInt32(&P.count,1)
+			if s.srv.PreContext != nil{
+				s.srv.PreContext(c)
+			}
 			ConSole(fmt.Sprintf("Work Poll<%d> recv New Conn :%d \n",P.index,c.fd))
 		}
 		case <- s.closeCh:{

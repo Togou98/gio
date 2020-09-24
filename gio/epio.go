@@ -9,6 +9,7 @@ func init(){
 }
 type Server struct {
 	Data func(c Conn,in []byte)(out []byte,i interface{})
+	PreContext func(c Conn)
 	Init func()
 	RoutineNum int
 	LoopCycle int
