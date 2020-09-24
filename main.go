@@ -2,7 +2,6 @@ package main
 
 import (
 	"./gio"
-	"bytes"
 	"fmt"
 	"io/ioutil"
 )
@@ -20,12 +19,18 @@ func test() {
 	srv.LoopCycle = 10
 	srv.RoutineNum = 1
 	gio.SetLogLevel(gio.CONSOLEVEL)
+	srv.PreContext = func(c gio.Conn) {
+		c.SetContext(gio.NewHttpProcessor())
+	}
 	srv.Data = func(c gio.Conn, in []byte) (out []byte, i interface{}) {
-		if bytes.Contains(in, []byte(`\r\n\r\n`)) {
-			out = []byte("HEllo MY GIo")
-			c.ShutdownFd(true)
+		if p,ok := c.Context().(*gio.HttpProccesor);ok{
+			rsp := p.ProcessData(in)
+			if rsp != nil{
+				rsp.Body = []byte("Hello Gio")
+				out = rsp.Bytes()
+				// c.ShutdownFd(true)
+			}
 		}
-		i = nil
 		return
 	}
 	gio.AddServant(srv, "tcp://0.0.0.0:8080")
