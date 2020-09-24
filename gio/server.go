@@ -12,7 +12,6 @@ import (
 	"unsafe"
 )
 
-const DEFAULTLOOPCYCLE = 100
 
 type poller struct {
 	index    int
@@ -93,7 +92,7 @@ func serve(srv *Server, lns []*listener) error {
 	routineNum := srv.RoutineNum
 	s := new(servant)
 	s.closeCh = make(chan struct{})
-	s.acceptchan = make(chan *conn, 0xff)
+	s.acceptchan = make(chan *conn, 4096)
 	s.closeln = make(chan struct{})
 	s.wg = new(sync.WaitGroup)
 	s.lns = lns
@@ -119,6 +118,7 @@ func serve(srv *Server, lns []*listener) error {
 		go work(s, p)
 		s.wg.Add(1)
 	}
+	fmt.Printf("%d WorkerRoutine On Watingfor I/O Events",routineNum+1)
 	return func() error {
 		s.waitForShutdonw()
 		for _, p := range s.pollers {
@@ -224,7 +224,7 @@ func closeProc(s *servant, p *poller, c *conn, err error) error {
 	return nil
 }
 func shutDownFd(s *servant, p *poller, c *conn, err error) error {
-	syscall.Shutdown(c.fd, syscall.SHUT_WR)
+	syscall.Shutdown(c.fd, syscall.SHUT_RD)
 	return nil
 }
 func acceptHandle(s *servant, fd int) error {

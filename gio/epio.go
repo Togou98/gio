@@ -1,7 +1,11 @@
 package gio
 
 import (
+	"fmt"
 	"net"
+	"os"
+	"syscall"
+	"time"
 )
 
 func init(){
@@ -42,6 +46,31 @@ func AddServant(srv *Server,addrs ...string)error{
 		}
 		lns = append(lns,&ln)
 	}
-	//ConSole(fmt.Sprintf("%d Address is On listening\n",len(lns)))
+	fmt.Printf("Server ListenAt %v\n",addrs)
 	return serve(srv,lns)
+}
+func SetFdLimit(n int){
+	l := syscall.Rlimit{}
+	l.Cur = uint64(n)
+	syscall.Setrlimit(syscall.RLIMIT_NOFILE, &l)
+	err := syscall.Getrlimit(syscall.RLIMIT_NOFILE,&l)
+	if err != nil{
+		fmt.Println(err)
+		os.Exit(-1)
+	}
+	fmt.Printf("CurFdLimit: %d | MaxFdLimit: %d\n",l.Cur,l.Max)
+}
+const(
+	consoleCyan = "\033[1;36m<%s>\033[0m%s\n"
+	//debugCyan  ="\\033[1;36m[DEBUG]\\033[0m"
+	//infoGreen = "\\033[1;36m[DEBUG]\\033[0m"
+	//warnPink = "\\033[1;35m[WARN]\\033[0m"
+	//errorRed = "\\033[0;31m[ERROR]\\033[0m"
+)
+func now2str(f string)string{
+	return time.Now().Format(f)
+}
+func ConSole(str string){
+
+		fmt.Printf(consoleCyan,now2str("03:04:06"),str)
 }

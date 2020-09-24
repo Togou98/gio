@@ -3,7 +3,6 @@ package gio
 import (
 	"bytes"
 	"strconv"
-	"fmt"
 )
 
 const BasicGET = "GET / HTTP/1.1\r\nHost: 192.168.1.1\r\n\r\n"
@@ -166,7 +165,7 @@ func parseGETOtherLine(b [][]byte, r *Request) {
 		if len(v) <= 0 {
 			break
 		}
-		fmt.Println(string(v))
+		//fmt.Println(string(v))
 		v = bytes.TrimSpace(v)
 		kv := bytes.SplitN(v, COLON[:], 2)
 		key := string(kv[0])

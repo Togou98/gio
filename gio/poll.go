@@ -8,6 +8,7 @@ import (
 
 	reuseport "github.com/kavu/go_reuseport"
 )
+const DEFAULTLOOPCYCLE = 100
 
 
 //epoll 结构封装

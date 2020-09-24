@@ -2,23 +2,24 @@ package main
 
 import (
 	"./gio"
-	"fmt"
-	"io/ioutil"
+	//"fmt"
+	//"io/ioutil"
+	"flag"
 )
-
+var t *int
+func init(){
+	t = flag.Int("t",1,"Use -t <int> to Set WorkRoutineNum\n")
+	flag.Parse()
+}
 func main() {
 	test()
-	//testBuf()
 }
 
 func test() {
-	buf, _ := ioutil.ReadFile("./main")
-	// buf = buf[:250000]
-	fmt.Println("File size ", len(buf))
+	gio.SetFdLimit(0xffff)
 	srv := new(gio.Server)
 	srv.LoopCycle = 10
-	srv.RoutineNum = 1
-	gio.SetLogLevel(gio.CONSOLEVEL)
+	srv.RoutineNum = *t
 	srv.PreContext = func(c gio.Conn) {
 		c.SetContext(gio.NewHttpProcessor())
 	}
@@ -28,7 +29,7 @@ func test() {
 			if rsp != nil{
 				rsp.Body = []byte("Hello Gio")
 				out = rsp.Bytes()
-				// c.ShutdownFd(true)
+				//c.ShutdownFd(true)
 			}
 		}
 		return
