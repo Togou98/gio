@@ -6,15 +6,14 @@ import (
 	"time"
 )
 
-const DEFAULTLOOPCYCLE = 20
-const DEFAULTBASEEVENTSSIZE = 0xF
+
 
 func init() {
 
 }
 
 type Server struct {
-	Data       func(c Conn, in []byte) (out []byte, i interface{})
+	Data       func(c Conn, in []byte) (out []byte)
 	OnConnect  func(c Conn)
 	RoutineNum int
 	LoopCycle  int
@@ -27,7 +26,7 @@ type Conn interface {
 	ShutdownFd(half bool)
 }
 
-func AddServant(srv *Server, addrs ...string) error {
+func Run(srv *Server, addrs ...string) error {
 	//var lns []*listener
 	var lns []*listener
 	defer func() {

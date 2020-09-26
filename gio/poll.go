@@ -8,16 +8,18 @@ import (
 
 	reuseport "github.com/kavu/go_reuseport"
 )
-
+const DEFAULTLOOPCYCLE = 20
+const DEFAULTBASEEVENTSSIZE = 0x400
 //epoll 结构封装
 type Action int
-
+const R = syscall.EPOLLIN
+const W = syscall.EPOLLOUT
+const ET = 0x80000000 // -syscall.EPOLLET
 const (
 	NONE Action = iota
 	READ
 	WRITE
 )
-
 type Poll struct {
 	epfd        int
 	wfd         int
@@ -68,9 +70,7 @@ func (p *Poll) Close() error {
 	return syscall.Close(p.epfd)
 }
 
-const R = syscall.EPOLLIN
-const W = syscall.EPOLLOUT
-const ET = 0x80000000 // -syscall.EPOLLET
+
 func (p *Poll) AddR(fd int, et bool) error {
 	if et {
 		return syscall.EpollCtl(p.epfd, syscall.EPOLL_CTL_ADD, fd, &syscall.EpollEvent{
@@ -165,7 +165,7 @@ func (p *Poll) WaitFn(s *servant, P *poller, callback func(fd int, Act Action) e
 				if s.srv.OnConnect != nil {
 					s.srv.OnConnect(c)
 				}
-				ConSole(fmt.Sprintf("Work Poll<%d> recv New Conn :%d \n", P.index, c.fd))
+				//ConSole(fmt.Sprintf("Work Poll<%d> recv New Conn :%d \n", P.index, c.fd))
 			}
 		case <-s.closeCh:
 			{

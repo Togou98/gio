@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"unsafe"
 )
-
+const BUFSIZE = 0x1000
 type poller struct {
 	index    int
 	poll     *Poll
@@ -85,7 +85,7 @@ func serve(srv *Server, lns []*listener) error {
 		s.pollers = append(s.pollers, p)
 	}
 	for _, p := range s.pollers {
-		go work(s, p)
+		go eventLoop(s, p)
 		s.wg.Add(1)
 	}
 	ConSole(fmt.Sprintf("当前有 %d 线程准备处理 网络I/O 事件",routineNum+1))
@@ -105,7 +105,7 @@ func serve(srv *Server, lns []*listener) error {
 		return nil
 	}()
 }
-func work(s *servant, p *poller) {
+func eventLoop(s *servant, p *poller) {
 	defer func() {
 		s.shutDown()
 		s.wg.Done()
@@ -131,7 +131,7 @@ func work(s *servant, p *poller) {
 
 func recvProc(s *servant, p *poller, c *conn) error {
 	for {
-		buf := make([]byte, 0xFFFF)
+		buf := make([]byte, BUFSIZE)
 		n, err := syscall.Read(c.fd, buf)
 		if n == 0 || err != nil {
 			if err == syscall.EAGAIN {
@@ -143,7 +143,7 @@ func recvProc(s *servant, p *poller, c *conn) error {
 			c.in = append(c.in, buf[:n]...)
 		}
 		if s.srv.Data != nil {
-			out, _ := s.srv.Data(c, c.in)
+			out := s.srv.Data(c, c.in)
 			c.in = nil
 			if len(out) >= 0 {
 				c.out = append(c.out, out...)

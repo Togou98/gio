@@ -3,12 +3,13 @@ package main
 import (
 	"./gio"
 	"flag"
+	"fmt"
 )
 
-var t *int
+var t int
 
 func init() {
-	t = flag.Int("t", 1, "Use -t <int> to Set WorkRoutineNum\n")
+	//t = flag.Int("t", 1, "Use -t <int> to Set WorkRoutineNum\n")
 	flag.Parse()
 }
 func main() {
@@ -16,26 +17,32 @@ func main() {
 }
 
 func test() {
+	//buf ,_:= ioutil.ReadFile("plmmzj.mp4")
+	//fmt.Println("File Size ",len(buf))
 	gio.SetFdLimit(0xffff)
 	srv := new(gio.Server)
-	srv.LoopCycle = 20
-	srv.RoutineNum = 0
-	srv.PreContext = func(c gio.Conn) {
-		c.SetContext(gio.NewHttpProcessor())
+	srv.LoopCycle = 10
+	srv.RoutineNum = t
+	srv.OnConnect = func(c gio.Conn) {
+		httpHandle := gio.NewHttpProcessor()
+		httpHandle.HandleFunc("/", func(r *gio.Response) {
+			r.Body.WriteString(welcome)
+		})
+		httpHandle.HandleFunc("/post",func(r *gio.Response){
+			r.Body.WriteString(welcome)
+			fmt.Println(r.ReqDatas)
+		})
+		c.SetContext(httpHandle)
 	}
-	srv.Data = func(c gio.Conn, in []byte) (out []byte, i interface{}) {
+	srv.Data = func(c gio.Conn, in []byte) (out []byte) {
 		if p, ok := c.Context().(*gio.HttpProccesor); ok {
-			p.ParseData(in)
-			if res := p.GenResponse();res != nil{
-				res.Body.WriteString(welcome)
+			if res := p.GenResponse(in);res != nil{
 				out = res.Bytes()
 			}
 		}
 		return
 	}
-	gio.AddServant(srv, "0.0.0.0:8080")
+	gio.Run(srv, "0.0.0.0:8080")
 }
 
-const welcome = `
-<h1><b><center>Hello Gio</center></b></h1>
-`
+const welcome = `<h1><b><center>Hello Gio</center></b></h1>`
