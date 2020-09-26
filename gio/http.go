@@ -3,6 +3,7 @@ package gio
 import (
 	"bytes"
 	"strconv"
+	"time"
 )
 
 const BasicGET = "GET / HTTP/1.1\r\nHost: 192.168.1.1\r\n\r\n"
@@ -18,6 +19,20 @@ Cookie: Hm_lvt_dd4738b5fb302cb062ef19107df5d2e4=1600491670,1600593966,1600777335
 Upgrade-Insecure-Requests: 1
 Pragma: no-cache
 Cache-Control: no-cache`
+const CURLPOST = `POST / HTTP/1.1
+Host: 127.0.0.1:8080
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:82.0) Gecko/20100101 Firefox/82.0
+Accept: */*
+Accept-Language: zh-CN,en-US;q=0.7,en;q=0.3
+Accept-Encoding: gzip, deflate
+Content-Type: application/x-www-form-urlencoded; charset=UTF-8
+Content-Length: 8
+Origin: https://getman.cn
+Connection: keep-alive
+Pragma: no-cache
+Cache-Control: no-cache
+
+sdagsgsa`
 const VER = "HTTP/1.1"
 
 var DELIMByte = [2]byte{'\r', '\n'}
@@ -37,17 +52,18 @@ func (m Method) String() string {
 }
 
 type Request struct {
-	Data       *bytes.Buffer
-	IsComplete bool
-	Meth       Method
-	Path       string
-	Ver        string
-	Host       string
-	Body       []byte
-	Header     map[string]string
+	Data           []byte
+	Meth           Method
+	Path           string
+	Ver            string
+	Host           string
+	Body           []byte
+	Content_Length int
+	Keep_Alive     bool
+	Header         map[string]string
 }
 type Response struct {
-	ReqDatas       *bytes.Buffer
+	ReqDatas       []byte
 	StatusMsg      string
 	Code           int
 	Ver            string
@@ -55,24 +71,25 @@ type Response struct {
 	Content_Type   string
 	Path           string
 	Header         map[string]string
-	Body           []byte
+	Body           *bytes.Buffer
 }
 
 func NewRequest() *Request {
 	return &Request{
-		bytes.NewBuffer([]byte{}),
-		false,
+		[]byte{},
 		GET,
 		"",
 		VER,
 		"",
 		[]byte{},
+		0,
+		false,
 		make(map[string]string),
 	}
 }
 func NewResponse() *Response {
 	return &Response{
-		ReqDatas:       bytes.NewBuffer([]byte{}),
+		ReqDatas:       nil,
 		StatusMsg:      "OK",
 		Code:           200,
 		Ver:            VER,
@@ -80,53 +97,52 @@ func NewResponse() *Response {
 		Content_Type:   "",
 		Path:           "",
 		Header:         make(map[string]string),
-		Body:           []byte{},
+		Body:           bytes.NewBuffer([]byte{}),
 	}
 }
 
 type HttpProccesor struct {
-	Req *Request
+	DataStream []byte
 }
 
 func NewHttpProcessor() *HttpProccesor {
-	return &HttpProccesor{Req: NewRequest()}
+	return &HttpProccesor{[]byte{}}
 }
-func (h *HttpProccesor) ProcessData(data []byte) *Response {
-	h.Req.Data.Write(data)
-	ln := h.Req.Data.Len()
-	end := h.Req.Data.Bytes()[ln-4 : ln]
-	if !bytes.Equal(end, HTTPEND[:]) {
-		return nil
-	} else {
-		h.Req.IsComplete = true
-		h.Req.Proc()
-		res := NewResponse()
-		res.Path = h.Req.Path
-		if len(h.Req.Body) > 0 {
-			res.ReqDatas.Write(h.Req.Body)
+
+func (h *HttpProccesor) ParseData(data []byte) {
+	h.DataStream = append(h.DataStream, data...)
+}
+func (h *HttpProccesor) GenResponse() *Response {
+	if bytes.HasPrefix(h.DataStream, []byte(GET.String())) || bytes.HasPrefix(h.DataStream, []byte(POST.String())) && bytes.Contains(h.DataStream, HTTPEND[:]) {
+		req := parseRequest(h.DataStream)
+		if req != nil {
+			res := NewResponse()
+			res.ReqDatas = req.Body
+			res.Path = req.Path
+			res.Header["Date"] = time.Now().Format(time.RFC822)
+			if req.Keep_Alive {
+				res.Header["Connection"] = "keep-alive"
+			}
+			return res
 		}
-		h.Req.Clear()
-		return res
 	}
 	return nil
 }
-func (r *Request) Proc() bool {
-	lines := bytes.Split(r.Data.Bytes(), DELIMByte[:])
-	//ln := len(lines)
-	//if lines[]
-	parseFistLine(lines[0], r)
-	if r.Meth == GET {
-		lines = lines[1 : len(lines)-2]
-		parseGETOtherLine(lines, r)
-
-	} else if r.Meth == POST {
-
+func parseRequest(data []byte) *Request {
+	req := NewRequest()
+	firstLineIdx := bytes.Index(data, DELIMByte[:])
+	endIdx := bytes.Index(data, HTTPEND[:])
+	headerBuf := data[firstLineIdx+2 : endIdx]
+	parseFistLine(data[:firstLineIdx], req)
+	headers := bytes.Split(headerBuf, DELIMByte[:])
+	parseHeader(headers, req)
+	if req.Content_Length > 0 {
+		req.Body = data[endIdx+4 : endIdx+4+req.Content_Length]
+		data = data[endIdx+4+req.Content_Length:]
 	}
-	return r.IsComplete
+	return req
 }
-func (r *Request) Clear() {
-	r = NewRequest()
-}
+
 func (r *Response) Bytes() []byte {
 	out := bytes.NewBuffer([]byte{})
 	out.WriteString(r.Ver)
@@ -139,7 +155,7 @@ func (r *Response) Bytes() []byte {
 		out.WriteString(r.Content_Type)
 		out.Write(DELIMByte[:])
 	}
-	dataln := len(r.Body)
+	dataln := r.Body.Len()
 	out.WriteString("Content-Length: " + strconv.Itoa(dataln))
 	out.Write(DELIMByte[:])
 	for k, v := range r.Header {
@@ -147,7 +163,7 @@ func (r *Response) Bytes() []byte {
 		out.Write(DELIMByte[:])
 	}
 	out.Write(DELIMByte[:])
-	out.Write(r.Body)
+	out.Write(r.Body.Bytes())
 	return out.Bytes()
 }
 
@@ -155,25 +171,37 @@ func parseFistLine(b []byte, r *Request) {
 	fLine := bytes.SplitN(b, SPACEByte[:], 3)
 	if string(fLine[0]) == GET.String() {
 		r.Meth = GET
+	} else if string(fLine[0]) == POST.String() {
+		r.Meth = POST
 	}
 	r.Path = string(fLine[1])
 	//Ver
 	return
 }
-func parseGETOtherLine(b [][]byte, r *Request) {
+func parseHeader(b [][]byte, r *Request) {
 	for _, v := range b {
 		if len(v) <= 0 {
 			break
 		}
-		//fmt.Println(string(v))
-		v = bytes.TrimSpace(v)
 		kv := bytes.SplitN(v, COLON[:], 2)
+		kv[1] = bytes.TrimLeft(kv[1], " ")
 		key := string(kv[0])
 		value := string(kv[1])
 		r.Header[key] = value
 	}
 	r.Host = r.Header["Host"]
-}
-func parsePOSTOtherLine(b [][]byte, r *Request) {
-
+	if ctxLn, ok := r.Header["Content-Length"]; ok {
+		ln, err := strconv.Atoi(ctxLn)
+		if err != nil {
+			return
+		}
+		r.Content_Length = ln
+	}
+	if alive, ok := r.Header["Connection"]; ok {
+		if ok {
+			if alive == "keep-alive" || alive == "Keep-Alive" {
+				r.Keep_Alive = true
+			}
+		}
+	}
 }

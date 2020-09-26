@@ -3,15 +3,12 @@ package gio
 import (
 	"fmt"
 	"net"
-	"os"
 	"runtime"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
 	"unsafe"
 )
-
 
 type poller struct {
 	index    int
@@ -58,30 +55,6 @@ type servant struct {
 	lns        []*listener
 }
 
-type listener struct {
-	ln      net.Listener
-	lnaddr  net.Addr
-	fd      int
-	f       *os.File
-	network string
-	addr    string
-}
-
-func parseAddr(addr string) (network, address string) { //,stdlib?)
-	network = "tcp"
-	address = addr
-	if strings.Contains(address, "://") { //://
-		network = strings.Split(address, "://")[0]
-		address = strings.Split(address, "://")[1]
-	} else {
-		//ERROR(fmt.Sprintf("ListenAddress :%s parseError\n",addr))
-	}
-	return
-}
-
-func (l *listener) close() {
-	syscall.Close(l.fd)
-}
 func serve(srv *Server, lns []*listener) error {
 	if srv.RoutineNum == 0 {
 		srv.RoutineNum = runtime.NumCPU()
@@ -97,9 +70,6 @@ func serve(srv *Server, lns []*listener) error {
 	s.wg = new(sync.WaitGroup)
 	s.lns = lns
 	s.srv = srv
-	if srv.Init != nil {
-		srv.Init()
-	}
 	//	defer waitforshutdonw() wg.wati()
 	for i := 0; i < routineNum+1; i++ { // + 1 第一个是监听epoll线程
 		var p *poller
@@ -118,7 +88,7 @@ func serve(srv *Server, lns []*listener) error {
 		go work(s, p)
 		s.wg.Add(1)
 	}
-	fmt.Printf("%d WorkerRoutine On Watingfor I/O Events",routineNum+1)
+	fmt.Printf("%d WorkerRoutine On Watingfor I/O Events", routineNum+1)
 	return func() error {
 		s.waitForShutdonw()
 		for _, p := range s.pollers {
@@ -255,11 +225,10 @@ func acceptHandle(s *servant, fd int) error {
 	return nil
 }
 
-//////////////////////////////////////////////////// UITLITY
 func createListenPoller(lns []*listener) *poller {
 	poller := &poller{
 		index:    0,
-		poll:     newPoll(),
+		poll:     listenPoll(),
 		fd2conns: make(map[int]*conn),
 		count:    int32(len(lns)),
 	}
@@ -270,25 +239,7 @@ func createListenPoller(lns []*listener) *poller {
 	poller.poll.isListePoll = true
 	return poller
 }
-func (l *listener) setReusePortAndNonBlock() error {
-	var err error
-	switch netln := l.ln.(type) {
-	case nil:
-		return fmt.Errorf("Cant judge ListenerType")
-	case *net.TCPListener:
-		l.f, err = netln.File()
-	}
-	if err != nil {
-		l.close()
-		return err
-	}
-	l.fd = int(l.f.Fd())
-	err = syscall.SetsockoptInt(l.fd, syscall.SOL_SOCKET, 0xf, 1) // 0xf so_reuseport
-	if err != nil {
-		return err
-	}
-	return syscall.SetNonblock(l.fd, true)
-}
+
 func (s *servant) waitForShutdonw() {
 	<-s.closeCh
 	close(s.closeCh)
