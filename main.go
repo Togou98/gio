@@ -27,6 +27,7 @@ func test() {
 		httpHandle := gio.NewHttpProcessor()
 		httpHandle.HandleFunc("/", func(r *gio.Response) {
 			r.Body.WriteString(welcome)
+			r.Content_Type = "text/plain; charset=UTF-8"
 		})
 		httpHandle.HandleFunc("/post",func(r *gio.Response){
 			r.Body.WriteString(welcome)
