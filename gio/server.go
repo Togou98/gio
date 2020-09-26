@@ -88,7 +88,7 @@ func serve(srv *Server, lns []*listener) error {
 		go work(s, p)
 		s.wg.Add(1)
 	}
-	fmt.Printf("%d WorkerRoutine On Watingfor I/O Events", routineNum+1)
+	ConSole(fmt.Sprintf("当前有 %d 线程准备处理 网络I/O 事件",routineNum+1))
 	return func() error {
 		s.waitForShutdonw()
 		for _, p := range s.pollers {

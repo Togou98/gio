@@ -6,36 +6,10 @@ import (
 	"time"
 )
 
-const BasicGET = "GET / HTTP/1.1\r\nHost: 192.168.1.1\r\n\r\n"
-const BasicPost = "POST / HTTP/1.1\r\nHost: 192.168.1.1\r\nContent-Length: 7\r\n\r\nNOTHING"
-const COMMONGET = `GET / HTTP/1.1
-Host: start.firefoxchina.cn
-User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:81.0) Gecko/20100101 Firefox/81.0
-Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
-Accept-Language: zh-CN,en-US;q=0.7,en;q=0.3
-Accept-Encoding: gzip, deflate, br
-Connection: keep-alive
-Cookie: Hm_lvt_dd4738b5fb302cb062ef19107df5d2e4=1600491670,1600593966,1600777335,1600958927; uid=rBADnV9jZlQXGgP8HUIyAg==; Hm_lpvt_dd4738b5fb302cb062ef19107df5d2e4=1600958937
-Upgrade-Insecure-Requests: 1
-Pragma: no-cache
-Cache-Control: no-cache`
-const CURLPOST = `POST / HTTP/1.1
-Host: 127.0.0.1:8080
-User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:82.0) Gecko/20100101 Firefox/82.0
-Accept: */*
-Accept-Language: zh-CN,en-US;q=0.7,en;q=0.3
-Accept-Encoding: gzip, deflate
-Content-Type: application/x-www-form-urlencoded; charset=UTF-8
-Content-Length: 8
-Origin: https://getman.cn
-Connection: keep-alive
-Pragma: no-cache
-Cache-Control: no-cache
-
-sdagsgsa`
 const VER = "HTTP/1.1"
-
-var DELIMByte = [2]byte{'\r', '\n'}
+var rn = [2]byte{'\r','\n'}
+var rn_rn = [4]byte{'\r','\n','\r','\n'}
+const RNRN = "\r\n\r\n"
 var SPACEByte = [1]byte{' '}
 var COLON = [1]byte{':'}
 var HTTPEND = [4]byte{'\r', '\n', '\r', '\n'}
@@ -64,10 +38,10 @@ type Request struct {
 }
 type Response struct {
 	ReqDatas       []byte
+	ReqMeth    Method
 	StatusMsg      string
 	Code           int
 	Ver            string
-	Content_Length int
 	Content_Type   string
 	Path           string
 	Header         map[string]string
@@ -93,7 +67,6 @@ func NewResponse() *Response {
 		StatusMsg:      "OK",
 		Code:           200,
 		Ver:            VER,
-		Content_Length: 0,
 		Content_Type:   "",
 		Path:           "",
 		Header:         make(map[string]string),
@@ -102,46 +75,76 @@ func NewResponse() *Response {
 }
 
 type HttpProccesor struct {
-	DataStream []byte
+	netStream []byte
+	handle    map [string]func(r *Response)
+}
+func(h *HttpProccesor)HandleFunc(path string,fn func(r *Response)){
+	h.handle[path] = fn
 }
 
 func NewHttpProcessor() *HttpProccesor {
-	return &HttpProccesor{[]byte{}}
+	return &HttpProccesor{[]byte{},make(map[string]func(r *Response))}
 }
 
-func (h *HttpProccesor) ParseData(data []byte) {
-	h.DataStream = append(h.DataStream, data...)
-}
-func (h *HttpProccesor) GenResponse() *Response {
-	if bytes.HasPrefix(h.DataStream, []byte(GET.String())) || bytes.HasPrefix(h.DataStream, []byte(POST.String())) && bytes.Contains(h.DataStream, HTTPEND[:]) {
-		req := parseRequest(h.DataStream)
-		if req != nil {
-			res := NewResponse()
-			res.ReqDatas = req.Body
-			res.Path = req.Path
-			res.Header["Date"] = time.Now().Format(time.RFC822)
-			if req.Keep_Alive {
-				res.Header["Connection"] = "keep-alive"
-			}
+
+func (h *HttpProccesor) GenResponse(data []byte) *Response {
+	h.netStream = append(h.netStream,data...)
+	if bytes.HasPrefix(h.netStream, []byte(GET.String())) || bytes.HasPrefix(h.netStream, []byte(POST.String())) && bytes.Contains(h.netStream, HTTPEND[:]) {
+		res :=  h.ParseRequest().genarateResponse()
+		if fn,ok := h.handle[res.Path];ok && res.Code != 500{
+			fn(res)
 			return res
+		}else{
+			return Response404(res.Path)
 		}
 	}
 	return nil
 }
-func parseRequest(data []byte) *Request {
+func(h *HttpProccesor)ParseRequest()*Request{
 	req := NewRequest()
-	firstLineIdx := bytes.Index(data, DELIMByte[:])
-	endIdx := bytes.Index(data, HTTPEND[:])
-	headerBuf := data[firstLineIdx+2 : endIdx]
-	parseFistLine(data[:firstLineIdx], req)
-	headers := bytes.Split(headerBuf, DELIMByte[:])
+	firstLineIdx := 	bytes.Index(h.netStream,rn[:])
+	endIdx := bytes.Index(h.netStream, rn_rn[:])
+	headerBuf := h.netStream[firstLineIdx+2 : endIdx]
+	parseFistLine(h.netStream[:firstLineIdx], req)
+	headers := bytes.Split(headerBuf, rn[:])
 	parseHeader(headers, req)
 	if req.Content_Length > 0 {
-		req.Body = data[endIdx+4 : endIdx+4+req.Content_Length]
-		data = data[endIdx+4+req.Content_Length:]
+		req.Body = h.netStream[endIdx+4 : endIdx+4+req.Content_Length]
 	}
+	h.netStream = h.netStream[:0]
 	return req
 }
+
+func Response404(path string)*Response{
+	response := NewResponse()
+	response.Body.WriteString("<h1><center><b>404 Pages Not Found</b></center></h1><br><center><h3>Gio/0.0.1</h3></center>")
+	response.Code = 404
+	response.StatusMsg =  "ERR"
+	//don't need set path
+	return response
+}
+func Response500(path string)*Response{
+	respone := NewResponse()
+	respone.Body.WriteString("<h1><center><b>Server Internel Error</b></center></h1>")
+	respone.Code = 500
+	respone.StatusMsg = "ERR"
+	respone.Path = path
+	return respone
+}
+func(request *Request) genarateResponse()*Response{
+	if request != nil {
+		res := NewResponse()
+		res.ReqDatas = request.Body
+		res.Path = request.Path
+		res.Header["Date"] = time.Now().Format(time.RFC822)
+		if request.Keep_Alive {
+			res.Header["Connection"] = "keep-alive"
+		}
+		res.Header["Server"] = "Gio/0.0.1"
+		return res
+	}else {return Response500(request.Path)}
+}
+
 
 func (r *Response) Bytes() []byte {
 	out := bytes.NewBuffer([]byte{})
@@ -150,19 +153,19 @@ func (r *Response) Bytes() []byte {
 	out.WriteString(strconv.Itoa(r.Code))
 	out.WriteByte(' ')
 	out.WriteString(r.StatusMsg)
-	out.Write(DELIMByte[:])
+	out.Write(rn[:])
 	if r.Content_Type != "" {
 		out.WriteString(r.Content_Type)
-		out.Write(DELIMByte[:])
+		out.Write(rn[:])
 	}
 	dataln := r.Body.Len()
 	out.WriteString("Content-Length: " + strconv.Itoa(dataln))
-	out.Write(DELIMByte[:])
+	out.Write(rn[:])
 	for k, v := range r.Header {
 		out.WriteString(k + ": " + v)
-		out.Write(DELIMByte[:])
+		out.Write(rn[:])
 	}
-	out.Write(DELIMByte[:])
+	out.Write(rn[:])
 	out.Write(r.Body.Bytes())
 	return out.Bytes()
 }

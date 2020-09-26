@@ -15,7 +15,7 @@ func init() {
 
 type Server struct {
 	Data       func(c Conn, in []byte) (out []byte, i interface{})
-	PreContext func(c Conn)
+	OnConnect  func(c Conn)
 	RoutineNum int
 	LoopCycle  int
 }
@@ -49,7 +49,7 @@ func AddServant(srv *Server, addrs ...string) error {
 }
 
 const (
-	consoleCyan = "\033[1;36m<%s>\033[0m%s\n"
+	consoleCyan = "[GIO]\033[1;36m<%s>\033[0m%s\n"
 	//debugCyan  ="\\033[1;36m[DEBUG]\\033[0m"
 	//infoGreen = "\\033[1;36m[DEBUG]\\033[0m"
 	//warnPink = "\\033[1;35m[WARN]\\033[0m"
@@ -60,6 +60,5 @@ func now2str(f string) string {
 	return time.Now().Format(f)
 }
 func ConSole(str string) {
-
 	fmt.Printf(consoleCyan, now2str("03:04:06"), str)
 }

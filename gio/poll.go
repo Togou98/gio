@@ -162,8 +162,8 @@ func (p *Poll) WaitFn(s *servant, P *poller, callback func(fd int, Act Action) e
 				P.poll.AddR(c.fd, true)
 				c.poller = P
 				atomic.AddInt32(&P.count, 1)
-				if s.srv.PreContext != nil {
-					s.srv.PreContext(c)
+				if s.srv.OnConnect != nil {
+					s.srv.OnConnect(c)
 				}
 				ConSole(fmt.Sprintf("Work Poll<%d> recv New Conn :%d \n", P.index, c.fd))
 			}
