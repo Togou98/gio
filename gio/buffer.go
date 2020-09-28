@@ -1,42 +1,40 @@
 package gio
 
-import "fmt"
-
 type Buf struct{
 	buf []byte
-	rdx int
-	wdx int
-	hdx int
-	ln int
+	r int
+	w int
 }
-func NewBuf(ln int)*Buf{
-	buf := []byte{}
-	rdx := 0
-	hdx := 0
-	wdx := rdx
-	return &Buf{buf,rdx,wdx,hdx,ln}
+func Buffer(size int)*Buf{
+	buf :=make([]byte,size)
+	buf = buf[:0]
+	r := 0
+	w := r
+	return &Buf{buf,r,w}
+}
+func(b *Buf)Len()int{
+	return b.w - b.r
 }
 func(b *Buf)Cap()int{
 	return cap(b.buf)
 }
-func(b *Buf)Len()int{
-	return b.wdx - b.rdx
-}
-
-func(b *Buf)In(data []byte){
-	b.wdx += len(data)
-	b.buf = append(b.buf,data...)
-}
-func(b *Buf)Out(ln int)[]byte {
-	out := make([]byte,ln)
-	movedLn := copy(out,b.buf[b.rdx:b.wdx])
-	b.rdx += movedLn
-	if b.rdx == b.wdx{
-		b.rdx,b.wdx = 0,0
-		b.buf = b.buf[:b.rdx]
+func(b *Buf)Write(data []byte)(int,error){
+	if b.Cap() - b.w > len(data) && b.r > len(data){
+		copy(b.buf[:b.w - b.r],b.buf[b.r:b.w])
+		b.r -= len(data)
+		b.w -= len(data)
 	}
-	return out
+	if b.Cap() < b.w + len(data){
+		b.buf = append(b.buf,data...)
+	}else{
+		b.buf = append(b.buf[:b.w],data...)
+	}
+	b.w += len(data)
+	return len(data),nil
 }
-func(b *Buf)String(){
-	fmt.Sprintf("%v",b.buf[:b.Len()])
+func(b *Buf)Read(data []byte)(int,error){
+	tmp := b.buf[b.r:b.w]
+	data = tmp
+	b.r += len(tmp)
+	return len(data),nil
 }
