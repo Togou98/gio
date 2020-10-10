@@ -17,8 +17,6 @@ func main() {
 }
 
 func test() {
-	//buf ,_:= ioutil.ReadFile("plmmzj.mp4")
-	//fmt.Println("File Size ",len(buf))
 	gio.SetFdLimit(0xffff)
 	srv := new(gio.Server)
 	srv.LoopCycle = 10
