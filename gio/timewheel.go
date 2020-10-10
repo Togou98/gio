@@ -1,6 +1,6 @@
 package gio
 import (
-//	"container/list"
+	"container/list"
 	"time"
 )
 
@@ -14,9 +14,9 @@ type TimeWheel struct {
 }
 func(t *TimeWheel)start(){
 	t.tick = time.Tick(t.interval)
-	for _ := range t.tick{
+	//for _ := range t.tick{
 		//1s
-	}
+	//}
 }
 type Task struct {
 	delay time.Duration
