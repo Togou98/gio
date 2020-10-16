@@ -6,10 +6,10 @@ import (
 	"fmt"
 )
 
-var t int
+var t *int
 
 func init() {
-	//t = flag.Int("t", 1, "Use -t <int> to Set WorkRoutineNum\n")
+	t = flag.Int("t", 1, "Use -t <int> to Set WorkRoutineNum\n")
 	flag.Parse()
 }
 func main() {
@@ -20,7 +20,7 @@ func test() {
 	gio.SetFdLimit(0xffff)
 	srv := new(gio.Server)
 	srv.LoopCycle = 10
-	srv.RoutineNum = t
+	srv.RoutineNum = *t
 	srv.OnConnect = func(c gio.Conn) {
 		httpHandle := gio.NewHttpProcessor()
 		httpHandle.HandleFunc("/", func(r *gio.Response) {
