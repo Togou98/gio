@@ -6,8 +6,9 @@
 class Poller{
 public:   
     Poller();
+    Poller(int lfd);
     ~Poller();
-    void init();
+    void loop();
     void mod(int,int);
     void add(int,int);
     void del(int,int);
@@ -15,13 +16,12 @@ public:
     int epfd;
     // void(*pf)() pHandleFunc;
     map<int,Conn*> conns;
-    atomic<int> count;
+    atomic_int count;
 };
 
-void Poller::init(){
-    int epfd =  epoll_create1(0);
-    add(listenFd,EPOLLIN || EPOLLET);
-
+Poller::Poller(int lfd):epfd(epoll_create1(0)),listenFd(lfd),conns(map<int,Conn*>()){
+   count = 0;
+   this->add(lfd,EPOLLIN | EPOLLET);
 }
 void Poller::mod(int fd,int op){
    struct epoll_event ev;

@@ -21,24 +21,24 @@ void GC(T ptr){
 int createListenSocket(string addr){
     int fd = socket(AF_INET,SOCK_STREAM,0);
     if (fd < 0){
-        cout<<"Socket Create Error"<<endl;
+        cerr<<"Socket Create Error"<<endl;
         return -1;
     }
     auto sockAddr = parseAddr(addr);
    if (bind(fd,sockAddr,sizeof(struct sockaddr_in)) < 0){
-       cout<<"Socket Bind Error"<<endl;
+       cerr<<"Socket Bind Error"<<endl;
        return -2;
    };
    int t = 1;
    if (setsockopt(fd,SOL_SOCKET,SO_REUSEPORT,&t,sizeof(t)) < 0){
-       cout<<"Socket SetReusePort Error"<<endl;
+       cerr<<"Socket SetReusePort Error"<<endl;
        return -3;
    }
    if( listen(fd,0x400) > 0){
-       cout<<"Socket Listen Error"<<endl;
+       cerr<<"Socket Listen Error"<<endl;
        return -4;
    } 
-   cout<<"Socket Listen At "<<addr<<endl;
+   cerr<<"Socket Listen At "<<addr<<endl;
     return fd;
 }
 
@@ -46,13 +46,13 @@ sockaddr* parseAddr(string addr){
     auto pos = addr.find(":");
     string ip = addr.substr(0,pos);
     string port = addr.substr(pos+1,addr.size());
-    cout<<"IP: "<<ip<<" Port:" <<port<<endl;
+    cerr<<"IP: "<<ip<<" Port:" <<port<<endl;
     uint16_t _p =  htons(atoi(port.c_str()));
 
     struct sockaddr_in localAddr;
     void *paddr = (void*)malloc(sizeof(sockaddr_in));
     if (paddr == nullptr){
-        cout<<"Malloc sockAddr_in Error"<<endl;
+        cerr<<"Malloc sockAddr_in Error"<<endl;
         return nullptr;
     } 
     memset(&localAddr,0,sizeof(localAddr));
@@ -85,6 +85,10 @@ class Conn{
     struct sockaddr* remoteAddr;
     string ip;
     string port;
+    char *in;
+    int insize;
+    char *out;
+    int outsize;
     //
 };
 void Conn::parseIpPort(){
@@ -111,7 +115,7 @@ Conn *acceptNewConn(int fd){
         if(errno == EINTR){
 
         }
-        cout<<"Accept NewFd Error"<<endl;
+        cerr<<"Accept NewFd Error"<<endl;
         GC(addr);
         return nullptr;
     }else{
