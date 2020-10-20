@@ -1,3 +1,4 @@
+#pragma once
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
@@ -27,6 +28,7 @@ int createListenSocket(string addr){
     auto sockAddr = parseAddr(addr);
    if (bind(fd,sockAddr,sizeof(struct sockaddr_in)) < 0){
        cerr<<"Socket Bind Error"<<endl;
+       GC(sockAddr);
        return -2;
    };
    int t = 1;
@@ -39,6 +41,7 @@ int createListenSocket(string addr){
        return -4;
    } 
    cerr<<"Socket Listen At "<<addr<<endl;
+   setNonblock(fd);
     return fd;
 }
 
@@ -67,62 +70,4 @@ sockaddr* parseAddr(string addr){
 int setNonblock(int fd){
     int Flag = fcntl(fd,F_GETFL,0);
    return  fcntl(fd,F_SETFL,Flag | O_NONBLOCK);
-}
-
-
-
-class Conn{
-    public:
-    Conn(){};
-    ~Conn(){
-        close(fd);
-        GC(remoteAddr);
-        GC(this);
-    }
-    void parseIpPort();
-    void setNonBlock();
-    int fd;
-    struct sockaddr* remoteAddr;
-    string ip;
-    string port;
-    char *in;
-    int insize;
-    char *out;
-    int outsize;
-    //
-};
-void Conn::parseIpPort(){
-    struct sockaddr_in cliaddr;
-     memset(&cliaddr, 0, sizeof(cliaddr));
-     socklen_t nl=sizeof(cliaddr);
-     getpeername(fd,(struct sockaddr*)&cliaddr,&nl);
-     ip  = inet_ntoa(cliaddr.sin_addr);
-     port = ntohs(cliaddr.sin_port); 
-}
-void Conn::setNonBlock(){
-    ::setNonblock(fd);
-}
-
-Conn *acceptNewConn(int fd){
-    socklen_t  len = 0;
-    struct sockaddr *addr = (struct sockaddr *)malloc(sizeof(struct sockaddr));
-    int nfd = accept(fd,addr,0);
-    if (nfd < 0){
-        if(errno == EAGAIN){
-            GC(addr);
-            return nullptr;
-        }
-        if(errno == EINTR){
-
-        }
-        cerr<<"Accept NewFd Error"<<endl;
-        GC(addr);
-        return nullptr;
-    }else{
-        Conn* c = new Conn;
-        c->fd = nfd;
-        c->remoteAddr = addr;
-        c->parseIpPort();
-        return c;
-    }
 }
