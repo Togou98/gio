@@ -1,11 +1,8 @@
 #ifndef __T_SOCKET_H
 #define __T_SOCKET_H
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <string>
+#include <arpa/inet.h>
+#include <sys/socket.h>
 #include <algorithm>
 #include <iostream>
 #include <cstring>

@@ -1,0 +1,14 @@
+{
+    "files.associations": {
+        "*.jce": "jce",
+        "iostream": "cpp",
+        "atomic": "cpp",
+        "thread": "cpp",
+        "vector": "cpp",
+        "memory": "cpp",
+        "random": "cpp",
+        "string": "cpp",
+        "cstring": "cpp",
+        "new": "cpp"
+    }
+}

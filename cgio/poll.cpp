@@ -1,10 +1,20 @@
+#include <sys/epoll.h>
+#include <utility>
+#include <unistd.h>
+#include <string>
+#include "server.h"
+#include "socket.h"
+#include "util.h"
 #include "poll.h"
-
 Poller::Poller(int lfd,int idx) : epfd(epoll_create1(0)), listenFd(lfd), conns(map<int, Conn *>())
 {
    index = idx;
    count = 0;
    this->add(lfd, EPOLLIN | EPOLLET);
+}
+Poller::~Poller(){
+        close(this->epfd);
+        GC(this);
 }
 void Poller::mod(int fd, int op)
 {
@@ -29,11 +39,14 @@ void Poller::del(int fd, int op)
 void Conn::setNonBlock(){
     setNonblock(fd);
 }
+int Poller::who() const{
+      return index;
+}
 void Conn::parseIpPort(const struct sockaddr_in& addr){
     port = ntohs(addr.sin_port);
     ip = string(inet_ntoa(addr.sin_addr));
 }
-void Poller::handleNewConn(const int fd)
+void Poller::handleNewConn(Server *s,int fd)
 {
    while (true){
       struct sockaddr_in caddr = {0}; //为应用层获取客户端的IP和端口号
@@ -42,23 +55,27 @@ void Poller::handleNewConn(const int fd)
       int nfd = accept(this->listenFd, (struct sockaddr*)&caddr, &len);
       if (nfd < 0)
       {
-         if (errno == EAGAIN) return;
-         if (errno == EINTR) continue;
+         if (errno == EAGAIN){ errno = 0 ;return;} 
+         if (errno == EINTR) {errno = 0;continue;}
       } else {
          Conn* c = new Conn;
          c->fd = nfd;
          c->father = this;
+         c->outpos  = 0;
          c->parseIpPort(caddr);
          c->setNonBlock();
          this->count++;
          this->conns[c->fd] = c;
          this->add(c->fd,EPOLLIN|EPOLLOUT|EPOLLET);
+         if(s->PreSet){
+            s->PreSet(c);
+         }
+         cout<<"Thread["<<who()<<"] Capture New Cli From "<<c->ip <<":"<<c->port<<endl;
       }
    }
 }
 
 void Poller::Wait(Server* s,std::function<int(Conn* c,int op)> fn){
-   cout<<"Thread "<< who()<< " Step IN wait" <<endl;
    while (true)
    {
       struct epoll_event *events = (struct epoll_event *)malloc(2 * sizeof(epoll_event));
@@ -79,12 +96,13 @@ void Poller::Wait(Server* s,std::function<int(Conn* c,int op)> fn){
          auto ev = events[i].events;
          if (fd == listenFd)
          {  
-            cout<<"May Be New Conn Comein" <<endl;
-            handleNewConn(fd);
-         }else if( ev | EPOLLIN ){//datain
-            fn(conns[fd],1);
-         }else if (ev | EPOLLOUT){
+            handleNewConn(s,fd);
+            continue;
+         }
+         if(ev & EPOLLOUT ){
             fn(conns[fd],2);
+         }else if( ev & EPOLLIN){
+            fn(conns[fd],1);
          }
       }
       if(ready == this->evsize && this->evsize <= 4096){
@@ -93,6 +111,14 @@ void Poller::Wait(Server* s,std::function<int(Conn* c,int op)> fn){
       GC(events);
    }
 }
-Poller::~Poller(){
+Conn::Conn(){
+   this->Ctx = nullptr;
+   this->father = nullptr;
+   this->fd = -1;
+}
 
+Conn::~Conn(){
+   close(this->fd);
+   if(Ctx) GC(Ctx);
+   GC(this);
 }

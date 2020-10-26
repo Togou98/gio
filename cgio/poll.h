@@ -1,55 +1,53 @@
-#ifndef _POLLER_
-#define _POLLER_
-#include <sys/epoll.h>
-#include <functional>
+#ifndef __POLL__
+#define __POLL__
 #include <map>
 #include <atomic>
-#include <utility>
+#include <functional>
 #include "server.h"
-#include "socket.h"
-#include "util.h"
+using namespace std;
+class Conn;
 class Server;
-class Poller;
-class Conn{
-    public:
-    Conn(){};
-    ~Conn(){
-        father = nullptr;
-        close(fd);
-        GC(this);
-    }
-    void parseIpPort(const struct sockaddr_in&);
-    void setNonBlock();
-    Poller *father = nullptr; 
-    int fd;
-    string ip;
-    string port;
-    char *in;
-    int insize;
-    char *out;
-    int outsize;
-    //
-};
 class Poller
 {
 public:
    Poller();
-   Poller(int,int);
+   Poller(int, int);
    ~Poller();
-    void Wait(Server*,function<int(Conn*,int)>);
+   void Wait(Server *, function<int(Conn *, int)>);
    void mod(int, int);
    void add(int, int);
    void del(int, int);
-   int who() const{
-      return index;
-   };
-private:
-   void handleNewConn(const int fd);
-   int listenFd;
-   int epfd;
+   int who() const;
+   std::map<int, Conn*> conns;
    int evsize = 2;
    int index;
-   map<int, Conn*> conns;
    atomic_int count;
+
+private:
+   int epfd;
+   void handleNewConn(Server *s,int fd);
+   int listenFd;
 };
+class Conn
+{
+public:
+   Conn();
+   ~Conn();
+   void *Ctx;
+   void parseIpPort(const struct sockaddr_in &);
+   void setNonBlock();
+   Poller *father = nullptr;
+   int fd;
+   string ip;
+   int port;
+   string in;  // 接收数据
+   string out; //发送缓冲
+   int outpos; //写位置
+};
+
+template<typename T>
+void GC(T ptr){
+   free(ptr);
+   ptr = nullptr;
+}
 #endif

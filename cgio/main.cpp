@@ -1,31 +1,35 @@
 #include "server.h"
-void Run();
-int main()
-{
-    
-    Run();
-}
-
-void Run()
-{
+#include "poll.h"
+#include "socket.h"
+#include<bits/stdc++.h>
+void toserver(){
+    const string echoback  ="' Echo";
     try
     {
         Server *s = new Server("127.0.0.1:8080");
         cout << "Thread Number " << s->threadNum << endl;
         s->threadNum = 1;
-        s->loopInterval = 2000;
-        s->Data = [](Conn* c,char *in)->char*{
-           return in;
+        s->loopInterval = 1000;
+        s->PreSet = [](Conn *c){
+            c->Ctx = nullptr;
         };
-        s->run();
+        s->Data = [echoback](Conn* c,string in)->string{
+           
+           in += echoback;
+            return in;
+        };
+        s->Run();
     }
     catch (exception &e)
     {
         cerr << e.what() << endl;
         return;
     }
-};
-
+}
+int main()
+{
+    toserver();
+}
 
 
 /*

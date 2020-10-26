@@ -1,5 +1,8 @@
 #include "socket.h"
-
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <poll.h>
 int createListenSocket(string addr)
 {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
