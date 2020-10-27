@@ -12,7 +12,8 @@
                 "main.cpp",
                 "server.cpp",
                 "poll.cpp",
-                "socket.cpp"
+                "socket.cpp",
+                "httpParser.cpp"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"

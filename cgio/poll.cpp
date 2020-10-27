@@ -78,16 +78,18 @@ void Poller::handleNewConn(Server *s,int fd)
 void Poller::Wait(Server* s,std::function<int(Conn* c,int op)> fn){
    while (true)
    {
-      struct epoll_event *events = (struct epoll_event *)malloc(2 * sizeof(epoll_event));
+      struct epoll_event events[evsize];
       int ready = epoll_wait(epfd, events, evsize, s->loopInterval);
-      if (ready < 0 && errno != EINTR)
+      if (ready < 0)
       {
-         //epoll err;
-         continue;
-         GC(events);
+
+         if (errno == EINTR){
+            errno = 0;
+            continue;
+            GC(events);
+         }
       }
       if(ready <= 0){
-        cout<<"Thread ["<<who()<<"] Timeout "<<endl;
         continue;
       }
       for (int i = 0; i < ready; i++)
@@ -105,10 +107,9 @@ void Poller::Wait(Server* s,std::function<int(Conn* c,int op)> fn){
             fn(conns[fd],1);
          }
       }
-      if(ready == this->evsize && this->evsize <= 4096){
+      if(ready >= this->evsize && this->evsize <= 4096){
          this->evsize =  (this->evsize << 1);
       }
-      GC(events);
    }
 }
 Conn::Conn(){

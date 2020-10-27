@@ -30,7 +30,6 @@ int createListenSocket(string addr)
         cerr << "Socket Listen Error" << endl;
         return -4;
     }
-    cerr << "Socket Listen At " << addr << endl;
     setNonblock(fd);
     return fd;
 }
@@ -40,7 +39,6 @@ sockaddr *parseAddr(string addr)
     auto pos = addr.find(":");
     string ip = addr.substr(0, pos);
     string port = addr.substr(pos + 1, addr.size());
-    cerr << "IP: " << ip << " Port:" << port << endl;
     uint16_t _p = htons(atoi(port.c_str()));
 
     struct sockaddr_in localAddr;

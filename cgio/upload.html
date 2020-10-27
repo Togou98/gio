@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>上传文件</title>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+</head>
+<style>
+body{
+    background-color: white;
+
+}
+h1{
+    color: aqua;  
+ text-align: center;
+}
+p{
+    text-align: center;
+}
+input{
+ width: 75px;
+ height:30px;
+ border:    black solid 1px;
+ border-radius: 30px;
+ background-color: springgreen;
+}
+
+.innerdiv{
+    align-items: center;
+    display: block;
+    height: 20%;
+    width: 20%;
+    background-color: coral;
+    border: 1px solid orangered;
+    border-radius: 30px;
+    margin: auto;
+}
+.bigdiv {
+    vertical-align :middle;
+    display: inline;
+}
+.btn{
+    width: 200px;
+ height:30px;
+ border:    black solid 1px;
+ border-radius: 30px;
+ background-color: springgreen; 
+ 
+}
+</style>
+<body>
+    <div class="bigdiv">
+        <div class="innerdiv">
+            <h1>上传文件</h1>
+            <form action="http://localhost:8080/uploadfiles" method="post" enctype="multipart/form-data">
+                <p><input type="file" name="upload" class="btn"></p>
+                <p><input type="submit" value="点击上传"></p>
+            </form>
+        </div>
+    </div> 
+    
+</body>
+<script>
+    // var xml = new XMLHttpRequest();
+    // xml.
+
+</script>
+</html>

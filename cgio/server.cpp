@@ -87,13 +87,12 @@ error ReadFunc(Server *s, shared_ptr<Poller> p, Conn *c)
             }
             if (got == 0)
             {
-                cout << "Peer Closed" << endl;
+                cout << "["<<c->ip <<":"<<c->port<<"] Closed Connection "<< endl;
                 return ::CloseFunc(s, p, c);
             }
         }
         else
         {
-            cout << "Got Data |" << buf << endl;
             c->in.append(buf, got); //每次发送数据后 将C in 清空
             if (s->Data)
             {
@@ -136,7 +135,7 @@ error WriteFunc(Server *s, shared_ptr<Poller> p, Conn *c)
             }
             if (ok == 0)
             {
-                cout << "Peer Closed" << endl;
+                cout << "["<<c->ip <<":"<<c->port<<"] Closed Connection "<< endl;
                 return CloseFunc(s, p, c);
             }
         }
