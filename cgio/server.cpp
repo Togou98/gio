@@ -117,8 +117,10 @@ error WriteFunc(Server *s, shared_ptr<Poller> p, Conn *c)
     while (true)
     {
         size_t sendLen = c->out.size() - c->outpos;
-        if (sendLen <= 0)
+        if (sendLen <= 0){
             return nullptr;
+            p->mod(c->fd,EPOLLIN |EPOLLET);
+        }
         const char *sendBegin = c->out.c_str() + c->outpos;
         int ok = send(c->fd, (void *)sendBegin, sendLen, 0);
         if (ok <= 0)
@@ -176,13 +178,9 @@ void PollerThreadEntrance(Server *s, shared_ptr<Poller> p)
         // p->Wait(s, func);
         p->Wait(s,[&](Conn* c,int op)->int{
         if (op == 1)
-            {
-                ReadFunc(s, p, c);
-            }
-            else if (op == 2)
-            {
-                WriteFunc(s, p, c);
-            }
+        ReadFunc(s, p, c);        
+        else if (op == 2)
+        WriteFunc(s, p, c);
             return 0;
         });
     }

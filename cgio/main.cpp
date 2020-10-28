@@ -22,7 +22,7 @@ void toserver()
     try
     {   string IPORT =  "127.0.0.1:8080";
         Server *s = new Server(IPORT);
-        s->loopInterval = 1000;  //wait 间隔
+        s->loopInterval = 20;  //wait 间隔
         s->threadNum = 1;   //线程数 不配就为CPU核数
         cout<<"Http Server ListenAnd Serving @"<<IPORT<<"Use ["<<s->threadNum<<"]Threads With "<<s->loopInterval <<"ms"<<endl;
         httpInit();

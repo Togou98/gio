@@ -9,6 +9,7 @@ string SPACE = " ";
 string COLON = ":";
 string FROMDATASEPRATER = "--";
 string BOUNDARY = "boundary";
+string HTTP_1_1 = "HTTP/1.1";
 const int _RNRNLEN = 4;
 const int _RNLEN = 2;
 Http::Http()
@@ -56,9 +57,9 @@ void Request::parseLine()
     {
         string f = rawHeader.substr(0, pos);
         Method = f.substr(0, f.find(SPACE));
-        int secondSpacePos = f.substr(Method.size() + 1, f.size()).find(SPACE);
-        Path = f.substr(Method.size() + 1, secondSpacePos);
-        Version = f.substr(secondSpacePos + Path.size(), f.size());
+        string next = f.substr(Method.length()+1,f.length());
+        Path = next.substr(0,next.find(SPACE));
+        Version = HTTP_1_1;
     }
     parseOtherLine(rawHeader.substr(pos + _RNLEN, rawHeader.size()));
 }
@@ -227,7 +228,3 @@ void Http::str2file(const string& path,const string& str){
     out << ss.str();
     return out.close(); 
 }
-///////////////////////////////for test
-// string str = "GET /post HTTP/1.1\r\nHost: 10000000\r\nConnection: keep-alive\r\nContent-Length: 12\r\n\r\nTEMPLATEDATA";
-// string str2 = "POST /get HTTP/1.1\r\n\r\n";
-// string testupload = "POST /upload HTTP/1.1\r\nHost: localhost:8080\r\nConnection: keep-alive\r\nContent-Length: 210\r\nContent-Type: multipart/form-data; boundary=----WebKitFormBoundaryFsz9N2QtCXfoY3cq\r\n\r\n------WebKitFormBoundaryFsz9N2QtCXfoY3cq\r\nContent-Disposition: form-data; name=\"upload\"; filename=\"Helloworld\"\r\nContent-Type: application/octet-stream\r\n\r\nHelloworld\r\n------WebKitFormBoundaryFsz9N2QtCXfoY3cq--\r\n";

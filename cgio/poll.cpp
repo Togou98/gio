@@ -65,7 +65,7 @@ void Poller::handleNewConn(Server *s,int fd)
          c->setNonBlock();
          this->count++;
          this->conns[c->fd] = c;
-         this->add(c->fd,EPOLLIN|EPOLLOUT|EPOLLET);
+         this->add(c->fd,EPOLLIN|EPOLLET);
          if(s->PreSet){
             s->PreSet(c);
          }
@@ -100,10 +100,10 @@ void Poller::Wait(Server* s,std::function<int(Conn* c,int op)> fn){
             handleNewConn(s,fd);
             continue;
          }
-         if(ev & EPOLLOUT ){
-            fn(conns[fd],2);
-         }else if( ev & EPOLLIN){
+         if(ev & EPOLLIN ){
             fn(conns[fd],1);
+         }else if( ev & EPOLLOUT){
+            fn(conns[fd],2);
          }
       }
       if(ready >= this->evsize && this->evsize <= 4096){
