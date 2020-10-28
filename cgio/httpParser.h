@@ -6,23 +6,31 @@
 #include <functional>
 #include <sstream>
 #include <unistd.h>
+#include <memory>
 using namespace std;
 class Response;
 class Request;
-class HttpStruct;
 
-class Http
+class Parser{
+    public:
+    virtual string parse(const string&); 
+    virtual ~Parser() = 0;
+};
+class Http: public Parser
 {
 public:
     Http();
     ~Http();
     string rawStr;
-    Http &Parse(string);
-    Http& parseHttp();
-    Request *Req;
-    Response *Res;
-    void PATH(string,void (*)(const Request*,Response*));
-    map<string,void(*)(const Request*,Response*)> phfMap;
+    virtual string parse(const string&);
+    void Thisfree();
+    shared_ptr<Request> Req;
+    shared_ptr<Response> Res;
+    // void PATH(string,void (*)(const Request*,Response*));
+    // map<string,void(*)(const Request*,Response*)> phfMap;
+    
+    void PATH(string,void (*)(shared_ptr<Request>,shared_ptr<Response>));
+    map<string,void(*)(shared_ptr<Request>,shared_ptr<Response>)> phfMap;
     string doResponse();
     static string pages;
     static void str2file(const string& path,const string& str);
@@ -32,9 +40,9 @@ private:
 struct Request
 {
     Request(string, string);
-    void parseLine();
-    void parseOtherLine(string);
+    ~Request();
     void parseHead();
+    void parseOtherLine(string);
     void parseBody();
     void parseKeyValue(string);
     void specialFilter();
@@ -56,6 +64,7 @@ struct Request
 struct Response
 {   Response();
     Response(Request *);
+    ~Response();
     string Page404(string);
     string Page500();
     void WriteString(string);

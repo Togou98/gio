@@ -5,6 +5,7 @@
 #include "server.h"
 #include "socket.h"
 #include "poll.h"
+#include "httpParser.h"
 Poller::Poller(int lfd,int idx) : epfd(epoll_create1(0)), listenFd(lfd), conns(map<int, Conn *>())
 {
    index = idx;
@@ -13,7 +14,6 @@ Poller::Poller(int lfd,int idx) : epfd(epoll_create1(0)), listenFd(lfd), conns(m
 }
 Poller::~Poller(){
         close(this->epfd);
-        GC(this);
 }
 void Poller::mod(int fd, int op)
 {
@@ -118,7 +118,10 @@ Conn::Conn(){
 }
 
 Conn::~Conn(){
-   close(this->fd);
-   if(Ctx) GC(Ctx);
-   GC(this);
+   cnt = 0;
+   father = nullptr;
+   fd = -1;
+   in.clear();
+   out.clear();
+   if(Ctx) delete Ctx;
 }

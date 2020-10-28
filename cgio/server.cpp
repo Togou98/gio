@@ -1,5 +1,6 @@
 #include <sys/epoll.h>
 #include <signal.h>
+#include <unistd.h>
 #include <thread>
 #include <mutex>
 #include <functional>
@@ -8,7 +9,7 @@
 using namespace std;
 const int RECVBUFSIZE = 0x2000;
 const size_t SIZEZERO = 0;
-void PollerThreadEntrance(Server*, shared_ptr<Poller>);
+void PollerThreadEntrance(Server *, int);
 
 Server::Server() : threadNum(thread::hardware_concurrency()), loopInterval(1000), lsfd(createListenSocket("127.0.0.1:8080"))
 {
@@ -35,16 +36,11 @@ void Server::Run()
     }
     signal(SIGABRT, SIG_IGN);
     signal(SIGPIPE, SIG_IGN);
-    for (int i = 0; i < threadNum; i++)
-    {
-        auto sPollPtr = shared_ptr<Poller>(new Poller(lsfd, i));
-        pollers.push_back(sPollPtr);
-    }
     vector<std::thread> vThread;
 
     for (int i = 0; i < threadNum; i++)
     {
-        thread t(PollerThreadEntrance, this, pollers[i]);
+        thread t(PollerThreadEntrance, this, i);
         vThread.push_back(std::move(t));
     }
     for (auto &t : vThread)
@@ -61,10 +57,12 @@ Server::~Server()
 }
 error CloseFunc(Server *s, shared_ptr<Poller> p, Conn *c)
 {
+    cout << "[" << c->ip << ":" << c->port << "] Closed Connection " << endl;
     p->del(c->fd, 0);
-    c->~Conn();
+    ::close(c->fd);
     p->conns.erase(c->fd);
     p->count--;
+    CPPGC(c);
     return nullptr;
 }
 error ReadFunc(Server *s, shared_ptr<Poller> p, Conn *c)
@@ -87,7 +85,6 @@ error ReadFunc(Server *s, shared_ptr<Poller> p, Conn *c)
             }
             if (got == 0)
             {
-                cout << "["<<c->ip <<":"<<c->port<<"] Closed Connection "<< endl;
                 return ::CloseFunc(s, p, c);
             }
         }
@@ -96,7 +93,7 @@ error ReadFunc(Server *s, shared_ptr<Poller> p, Conn *c)
             c->in.append(buf, got); //每次发送数据后 将C in 清空
             if (s->Data)
             {
-                string out = s->Data(c, string(buf, got));
+                string out = s->Data(c, c->in);
                 if (out.size() > SIZEZERO)
                 {
                     c->out.append(out);
@@ -113,13 +110,13 @@ error ReadFunc(Server *s, shared_ptr<Poller> p, Conn *c)
 }
 error WriteFunc(Server *s, shared_ptr<Poller> p, Conn *c)
 {
-
     while (true)
     {
         size_t sendLen = c->out.size() - c->outpos;
-        if (sendLen <= 0){
+        if (sendLen <= 0)
+        {
             return nullptr;
-            p->mod(c->fd,EPOLLIN |EPOLLET);
+            p->mod(c->fd, EPOLLIN | EPOLLET);
         }
         const char *sendBegin = c->out.c_str() + c->outpos;
         int ok = send(c->fd, (void *)sendBegin, sendLen, 0);
@@ -137,8 +134,7 @@ error WriteFunc(Server *s, shared_ptr<Poller> p, Conn *c)
             }
             if (ok == 0)
             {
-                cout << "["<<c->ip <<":"<<c->port<<"] Closed Connection "<< endl;
-                return CloseFunc(s, p, c);
+                return ::CloseFunc(s, p, c);
             }
         }
         else
@@ -149,7 +145,7 @@ error WriteFunc(Server *s, shared_ptr<Poller> p, Conn *c)
                 c->out.clear();
                 c->in.clear();
                 c->outpos = 0;
-                p->mod(c->fd, EPOLLIN | EPOLLET);
+                p->mod(c->fd, EPOLLIN | EPOLLOUT | EPOLLET);
             }
             else
             {
@@ -160,27 +156,18 @@ error WriteFunc(Server *s, shared_ptr<Poller> p, Conn *c)
     return nullptr;
 }
 
-void PollerThreadEntrance(Server *s, shared_ptr<Poller> p)
+void PollerThreadEntrance(Server *s, int i)
 {
     try
     {
-        // std::function<int(Conn *, int)> func = [&](Conn *c, int op) {
-        //     if (op == 1)
-        //     {
-        //         ReadFunc(s, p, c);
-        //     }
-        //     else if (op == 2)
-        //     {
-        //         WriteFunc(s, p, c);
-        //     }
-        //     return 0;
-        // };
-        // p->Wait(s, func);
-        p->Wait(s,[&](Conn* c,int op)->int{
-        if (op == 1)
-        ReadFunc(s, p, c);        
-        else if (op == 2)
-        WriteFunc(s, p, c);
+        thread_local auto PollPtr = shared_ptr<Poller>(new Poller(s->lsfd, i));
+        s->pollers.push_back(PollPtr);
+
+        PollPtr->Wait(s, [&](Conn *c, int op) -> int {
+            if (op == 1)
+                ReadFunc(s, PollPtr, c);
+            else if (op == 2)
+                WriteFunc(s, PollPtr, c);
             return 0;
         });
     }

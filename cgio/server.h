@@ -20,12 +20,11 @@ public:
     Server(std::string addr);
     ~Server();
     void Run();
-    std::function<std::string(Conn *, std::string)> Data;
+    std::function<std::string(Conn *, const std::string&)> Data;
     std::function<void(Conn *)> PreSet;
     int threadNum;
     int loopInterval;
     int lsfd;
-private:
     std::vector<std::shared_ptr<Poller>> pollers;
 };
 #endif
