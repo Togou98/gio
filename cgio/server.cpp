@@ -162,8 +162,20 @@ void PollerThreadEntrance(Server *s, shared_ptr<Poller> p)
 {
     try
     {
-        std::function<int(Conn *, int)> func = [&](Conn *c, int op) {
-            if (op == 1)
+        // std::function<int(Conn *, int)> func = [&](Conn *c, int op) {
+        //     if (op == 1)
+        //     {
+        //         ReadFunc(s, p, c);
+        //     }
+        //     else if (op == 2)
+        //     {
+        //         WriteFunc(s, p, c);
+        //     }
+        //     return 0;
+        // };
+        // p->Wait(s, func);
+        p->Wait(s,[&](Conn* c,int op)->int{
+        if (op == 1)
             {
                 ReadFunc(s, p, c);
             }
@@ -172,8 +184,7 @@ void PollerThreadEntrance(Server *s, shared_ptr<Poller> p)
                 WriteFunc(s, p, c);
             }
             return 0;
-        };
-        p->Wait(s, func);
+        });
     }
     catch (const std::exception &e)
     {

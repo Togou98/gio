@@ -4,7 +4,6 @@
 #include <string>
 #include "server.h"
 #include "socket.h"
-#include "util.h"
 #include "poll.h"
 Poller::Poller(int lfd,int idx) : epfd(epoll_create1(0)), listenFd(lfd), conns(map<int, Conn *>())
 {

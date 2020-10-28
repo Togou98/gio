@@ -2,7 +2,6 @@
 #include "poll.h"
 #include "socket.h"
 #include "httpParser.h"
-#include "util.h"
 #include <bits/stdc++.h>
 void httpInit()
 {
