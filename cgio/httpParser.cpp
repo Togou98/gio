@@ -189,8 +189,8 @@ string Http::doResponse()
 }
 void Http::Free()
 {
-    if (Req)
-        cout << Req->Path << " Response Free Called" << endl;
+    // if (Req)
+    //     cout << Req->Path << " Response Free Called" << endl;
     rawStr.clear();
     if (Req)
     {

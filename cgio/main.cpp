@@ -12,8 +12,8 @@ void toserver()
     int cnt =0;
         static string IPORT =  "127.0.0.1:8080";
         Server *s = new Server(IPORT);
-        s->loopInterval = 20;  //wait 间隔
-        s->threadNum = 1;   //线程数 不配就为CPU核数
+        s->loopInterval = 10;  //wait 间隔
+        // s->threadNum = 2;   //线程数 不配就为CPU核数
         cout<<"Http Server ListenAnd Serving @"<<IPORT<<" Use ["<<s->threadNum<<"] Threads With "<<s->loopInterval <<" ms"<<endl;
         Http::init();
         s->PreSet = [](Conn *c) {
@@ -41,11 +41,7 @@ void toserver()
             c->Ctx = p;
         };
         s->Data = [](Conn *c, const string& in) -> string {
-            c->cnt++;
-            cout<<c->port<< " "<<c->cnt <<" Times in called"<<endl;
-            string out = c->Ctx->parse(in);
-            int t = 0x10;
-            return out;
+            return c->Ctx->parse(in);
         };
         s->Run();
     }

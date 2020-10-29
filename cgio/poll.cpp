@@ -118,7 +118,6 @@ Conn::Conn(){
 }
 
 Conn::~Conn(){
-   cnt = 0;
    father = nullptr;
    fd = -1;
    in.clear();

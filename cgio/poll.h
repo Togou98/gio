@@ -44,7 +44,6 @@ public:
    string in;  // 接收数据
    string out; //发送缓冲
    int outpos; //写位置
-   int cnt;
 };
 
 template <typename T>
