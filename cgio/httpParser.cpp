@@ -14,40 +14,34 @@ const string EMPTYSTRING = "";
 const string SERVER = "GIO/0.0.1";
 const int _RNRNLEN = 4;
 const int _RNLEN = 2;
-
-Http::Http(){
+Http::Http()
+{
 }
 Http::~Http()
-{   
-    //  CPPGC(Req);
-    //  CPPGC(Res);
-    // cout<<"HTTP Des Called"<<endl;
+{
+    Free();
 }
 
-string Http::parse(const string& data)
+string Http::parse(const string &data)
 {
     if (data.empty())
         return EMPTYSTRING;
-    if(rawStr.empty() && Req){
-        Thisfree();
-    }
     if (!Req)
-    {   
-        rawStr += data;
+    {
+        rawStr.append(data);
         size_t headBodyGap = rawStr.find(_RNRN);
         if (headBodyGap > rawStr.length() || headBodyGap < 0)
             return EMPTYSTRING;
         string headText = rawStr.substr(0, headBodyGap);
         string bodyText = rawStr.substr(headBodyGap + _RNRNLEN, rawStr.length());
-        // Req = new Request(headText, bodyText);
-        Req = make_shared<Request>(headText,bodyText);
+        Req = new Request(headText, bodyText);
         Req->parseHead();
     }
     else
     {
-        cout<<Req->rawBody<<endl;
-        rawStr += data;
+        rawStr.append(data);
         Req->rawBody.append(data);
+        Req->CheckLength();
     }
     if (Req->Done)
     {
@@ -55,10 +49,11 @@ string Http::parse(const string& data)
         {
             Req->parseBody();
         }
-        // Res = new Response(Req);
-        Res = make_shared<Response>(Req);
+        Res = new Response(Req);
         return doResponse();
-    }else return EMPTYSTRING;
+    }
+    else
+        return EMPTYSTRING;
 }
 void Request::parseHead()
 {
@@ -76,20 +71,20 @@ void Request::parseHead()
 
 void Request::parseOtherLine(string s)
 {
-        while (true)
+    while (true)
+    {
+        int next = s.find(_RN);
+        if (next >= 0 && next < s.size())
         {
-            int next = s.find(_RN);
-            if (next >= 0 && next < s.size())
-            {
-                parseKeyValue(s.substr(0, next));
-                s = s.substr(next + 2, s.size());
-            }
-            else
-            {
-                break;
-            }
+            parseKeyValue(s.substr(0, next));
+            s = s.substr(next + 2, s.size());
         }
-        specialFilter();
+        else
+        {
+            break;
+        }
+    }
+    specialFilter();
 }
 void Request::parseKeyValue(string kv)
 {
@@ -109,8 +104,25 @@ void Request::parseKeyValue(string kv)
 }
 void Request::specialFilter()
 {
+    CheckLength();
+    auto itConn = Header.find("Connection");
+    if (itConn != Header.end())
+    {
+        if (itConn->second == "keep-alive" || itConn->second == "Keep-Alive")
+        {
+            Keep_Alive = true;
+        }
+    }
+    auto itHost = Header.find("Host");
+    if (itHost != Header.end())
+    {
+        Host = itHost->second;
+    }
+}
+void Request::CheckLength()
+{
     auto itCL = Header.find("Content-Length");
-    if (!rawBody.empty()  ||itCL != Header.end())
+    if (!rawBody.empty() || itCL != Header.end())
     {
         Content_Length = atoi(itCL->second.c_str());
         if (rawBody.length() >= Content_Length)
@@ -121,19 +133,9 @@ void Request::specialFilter()
         {
             Done = false;
         }
-    } else Done = true;
-    auto itConn = Header.find("Connection");
-    if (itConn != Header.end())
-    {
-        if (itConn->second == "keep-alive" || itConn->second == "Keep-Alive"){
-            Keep_Alive = true;
-        }
     }
-    auto itHost = Header.find("Host");
-    if (itHost != Header.end())
-    {
-        Host = itHost->second;
-    }
+    else
+        Done = true;
 }
 void Request::parseBody()
 {
@@ -162,11 +164,7 @@ void Request::parseTrueBody(string boundary)
     divBound = divBound.substr(fname.length() + 2, divBound.find("Content-Type"));
     Filename = divBound.substr(0, divBound.find("\"\r\n"));
 }
-Response::Response(Request *Req) : Keep_Alive(Req->Keep_Alive)
-{
-    
-    Header["Server"] = SERVER;
-}
+
 string Http::doResponse()
 {
     if (!Req || !Req->Done || !Res)
@@ -175,24 +173,35 @@ string Http::doResponse()
     }
     string Ret;
     auto HandleFuncIt = phfMap.find(Req->Path);
-    if (HandleFuncIt == phfMap.end())
-    {
-        Ret = Res->Page404(Req->Path);
-    }
-    else
+    auto FileHandle = Http::fMap.find(Req->Path.substr(1,Req->Path.length()));
+    if(FileHandle != Http::fMap.end()){
+        Res->WriteString(FileHandle->second);
+        Res->Header["Content-Type"] = "image/png";
+        Ret = Res->String();
+    }else if (HandleFuncIt != phfMap.end())
     {
         HandleFuncIt->second(Req, Res);
         Ret = Res->String();
     }
-   Thisfree();
+    else Ret = Res->Page404(Req->Path); 
+    Free();
     return Ret;
 }
-void Http::Thisfree(){
+void Http::Free()
+{
+    if (Req)
+        cout << Req->Path << " Response Free Called" << endl;
     rawStr.clear();
-    // if(Req) delete Req;
-    // if(Res) delete Res;
-    // Req = nullptr;
-    // Res = nullptr;
+    if (Req)
+    {
+        delete Req;
+        Req = nullptr;
+    }
+    if (Res)
+    {
+        delete Res;
+        Res = nullptr;
+    }
 }
 Request::~Request()
 {
@@ -201,7 +210,7 @@ Response::~Response()
 {
 }
 
-void Http::PATH(string path, void (*handle)(shared_ptr<Request> Req,shared_ptr<Response> Res))
+void Http::PATH(string path, void (*handle)(const Request *Req, Response *Res))
 {
     phfMap[path] = handle;
 }
@@ -219,7 +228,8 @@ string Response::String()
     oss << "HTTP/1.1 " << Code << " " << Message << _RN;
     if (Keep_Alive)
         Header["Connection"] = "keep-alive";
-    else Header["Connection"] = "close";
+    else
+        Header["Connection"] = "close";
     for (const auto &head : Header)
     {
         oss << head.first << ": " << head.second << _RN;
@@ -240,12 +250,22 @@ string Response::Page500()
 {
     return "";
 }
+Response::Response() {}
+Response::Response(Request *Req) : Keep_Alive(Req->Keep_Alive)
+{   
+    Code = 200;
+    Message = "OK";
+    Header["Server"] = SERVER;
+}
 Request::Request(string h, string b) : rawHeader(h), rawBody(b) {}
-string Parser::parse(const string&){
+string Parser::parse(const string &)
+{
     return EMPTYSTRING;
 }
-Parser::~Parser(){}
-string Http::pages = "";
+Parser::~Parser() {}
+
+map<string,string> Http::fMap = {};
+
 void Http::str2file(const string &path, const string &str)
 {
     std::ofstream out(path, std::ios_base::out | std::ios_base::trunc);
@@ -253,4 +273,18 @@ void Http::str2file(const string &path, const string &str)
     ss << str;
     out << ss.str();
     return out.close();
+}
+void Http::init(){
+    string uploadPage = "upload.html";
+    Http::fMap[uploadPage] = Http::file2str(uploadPage);   
+}
+string Http::file2str(const string& path){
+        ifstream in(path);
+        stringstream ss;
+        if (in.is_open())
+        {
+            ss << in.rdbuf();
+        }else return EMPTYSTRING;
+        in.close();
+        return ss.str();
 }

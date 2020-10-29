@@ -34,7 +34,7 @@ class Conn
 public:
    Conn();
    ~Conn();
-   Parser *Ctx;
+   Http *Ctx;
    void parseIpPort(const struct sockaddr_in &);
    void setNonBlock();
    Poller *father = nullptr;

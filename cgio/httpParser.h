@@ -23,18 +23,16 @@ public:
     ~Http();
     string rawStr;
     virtual string parse(const string&);
-    void Thisfree();
-    shared_ptr<Request> Req;
-    shared_ptr<Response> Res;
-    // void PATH(string,void (*)(const Request*,Response*));
-    // map<string,void(*)(const Request*,Response*)> phfMap;
-    
-    void PATH(string,void (*)(shared_ptr<Request>,shared_ptr<Response>));
-    map<string,void(*)(shared_ptr<Request>,shared_ptr<Response>)> phfMap;
+    void Free();
+    Request* Req = nullptr;
+    Response* Res = nullptr;
+    void PATH(string,void (*)(const Request*,Response*));
+    map<string,void(*)(const Request*,Response*)> phfMap;
     string doResponse();
-    static string pages;
     static void str2file(const string& path,const string& str);
-private:
+    static string file2str(const string& path);
+    static map<string,string> fMap;
+    static void init();
 };
 
 struct Request
@@ -47,6 +45,7 @@ struct Request
     void parseKeyValue(string);
     void specialFilter();
     void parseTrueBody(string);
+    void CheckLength();
     string rawHeader;
     string rawBody;
     ///////////////////
